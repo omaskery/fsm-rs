@@ -5,7 +5,7 @@ version = "0.1.0"
 authors = ["Oliver Maskery <omaskery@googlemail.com>"]
 
 readme = "README.md"
-keywords = ["fsm", "state", "state machine"]
+keywords = ["fsm", "state"]
 
 homepage = "https://github.com/omaskery/fsm-rs"
 repository = "https://github.com/omaskery/fsm-rs"
