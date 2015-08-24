@@ -9,5 +9,6 @@ keywords = ["fsm", "state"]
 
 homepage = "https://github.com/omaskery/fsm-rs"
 repository = "https://github.com/omaskery/fsm-rs"
+license = "MIT"
 license-file = "LICENSE.txt"
 
