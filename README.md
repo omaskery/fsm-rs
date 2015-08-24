@@ -72,7 +72,7 @@ This example is also the test case for the library, although here I've ommitted 
 # Alternatives #
 
 ## Macro based solutions ##
-- [machine](function://crates.io/crates/machine)
+- [machine](https://crates.io/crates/machine)
 - [microstate](https://crates.io/crates/microstate)
 - [beehave](https://crates.io/crates/beehave)
 
