@@ -47,12 +47,12 @@ let mut machine = Machine::new(TurnStyleState::Locked);
 // create the transition from Locked -> Unlocked upon inserting a coin
 machine.add_transition(
 	TurnStyleState::Locked, TurnStyleEvent::InsertCoin,
-	TurnStyleState::Unlocked, |_| println!("unlocked")
+	TurnStyleState::Unlocked, |_,_| println!("unlocked")
 );
 // create the transition from Unlocked -> Locked upon pushing the turnstyle
 machine.add_transition(
 	TurnStyleState::Unlocked, TurnStyleEvent::Push,
-	TurnStyleState::Locked, |_| println!("locked")
+	TurnStyleState::Locked, |_,_| println!("locked")
 );
 ```
 
