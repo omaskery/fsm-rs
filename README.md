@@ -7,31 +7,35 @@ Using the simple coin-operated turnstyle example from the FSM wikipedia entry:
 
 Define your states and events:
 ```rust
-// currently states must be cloneable
-#[derive(Clone)]
+// states and events must be C-like enums (copyable and easily converted to primitives)
+#[derive(Copy, Clone)]
 enum TurnStyleState {
 	Locked,
 	Unlocked,
 }
 
-// currently events must be cloneable
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 enum TurnStyleEvent {
 	Push,
 	InsertCoin,
 }
 
-// currently must be convertable to u32
-impl Into<u32> for TurnStyleState {
-	fn into(self) -> u32 {
-		self as u32
+// implement the EnumTag trait for states and events
+impl EnumTag for TurnStyleState {
+	fn tag_number(&self) -> usize {
+		*self as usize
+	}
+	fn max_tag_number() -> usize {
+		TurnStyleState::Unlocked as usize
 	}
 }
 
-// currently must be convertable to u32
-impl Into<u32> for TurnStyleEvent {
-	fn into(self) -> u32 {
-		self as u32
+impl EnumTag for TurnStyleEvent {
+	fn tag_number(&self) -> usize {
+		*self as usize
+	}
+	fn max_tag_number() -> usize {
+		TurnStyleEvent::InsertCoin as usize
 	}
 }
 ```
@@ -65,9 +69,8 @@ This example is also the test case for the library, although here I've ommitted 
 
 # To Do #
 
-- Remove need to Clone inside implementation, I'm sure it's unnecessary
-- There must be a more elegant way to write both the add transition method and the on event method, perhaps using Option methods?
-- A better trait than Into (u32) ? Not sure if I can get rid of ANY trait dependancy, but Into currently contributes to the dependancy on Clone, when all I really want is a unique ID for each state/ID (preferably sequential), aka: the enum tag.
+- Integrate suggestion to hide boxing of closures (thanks ricky26!)
+- Expose predicate interface and write unit tests for it
 
 # Alternatives #
 
