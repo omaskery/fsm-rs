@@ -5,14 +5,12 @@ pub type Action<S, E> = Box<Fn(&S,&E)>;
 /// Predicates are used to filter down whether a transition can occur
 pub type Predicate<S, E> = Box<Fn(&S,&E) -> bool>;
 
-/// Trait that should be trivially implementable for any Enum type
-pub trait EnumTag {
+/// Trait that should be trivially implementable for any C-Like Enum type
+pub trait EnumTag: Copy {
 	/// returns the discriminator tag for the enum (some_value as usize)
 	fn tag_number(&self) -> usize;
 	/// returns the highest discriminator tag for this enum
 	fn max_tag_number() -> usize;
-	/// returns an instance of the enum from a tag number
-	fn from_tag(tag: usize) -> Self;
 }
 
 /// The Transition records, for a given current state, what event type triggers it to move to
@@ -36,7 +34,7 @@ struct StateTransitions<S: EnumTag, E: EnumTag> {
 /// The Machine is the Finite State Machine, which has a current state and set of all valid
 /// transitions
 pub struct Machine<S: EnumTag, E: EnumTag> {
-	state: usize,
+	state: S,
 	transitions: Vec<StateTransitions<S, E>>,
 }
 
@@ -60,7 +58,7 @@ impl<S: EnumTag, E: EnumTag> Machine<S, E> {
 		}
 
 		Machine {
-			state: initial_state.tag_number(),
+			state: initial_state,
 			transitions: transitions,
 		}
 	}
@@ -80,12 +78,12 @@ impl<S: EnumTag, E: EnumTag> Machine<S, E> {
 
 	/// Retrieves a reference to the current state
 	pub fn current_state(&self) -> S {
-		S::from_tag(self.state)
+		self.state
 	}
 
 	/// Tick the State Machine with an Event
 	pub fn on_event(&mut self, event_type: E) {
-		let transition = &self.transitions[self.state];
+		let transition = &self.transitions[self.state.tag_number()];
 		let edge = &transition.edges[event_type.tag_number()];
 
 		for transition in edge.transitions.iter() {
@@ -95,8 +93,8 @@ impl<S: EnumTag, E: EnumTag> Machine<S, E> {
 			};
 
 			if valid {
-				(*transition.action)(&self.current_state(), &event_type);
-				self.state = transition.next_state.tag_number();
+				(*transition.action)(&self.state, &event_type);
+				self.state = transition.next_state;
 				break;
 			}
 		}
@@ -107,13 +105,13 @@ impl<S: EnumTag, E: EnumTag> Machine<S, E> {
 mod test {
 	use super::*;
 
-	#[derive(Debug, Eq, PartialEq)]
+	#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 	enum TurnStyleState {
 		Locked,
 		Unlocked,
 	}
 
-	#[derive(Debug, Eq, PartialEq)]
+	#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 	enum TurnStyleEvent {
 		Push,
 		InsertCoin,
@@ -121,39 +119,19 @@ mod test {
 
 	impl EnumTag for TurnStyleState {
 		fn tag_number(&self) -> usize {
-			match self {
-				&TurnStyleState::Locked => 0,
-				&TurnStyleState::Unlocked => 1
-			}
+			*self as usize
 		}
 		fn max_tag_number() -> usize {
 			TurnStyleState::Unlocked as usize
-		}
-		fn from_tag(tag: usize) -> TurnStyleState {
-			match tag {
-				0 => TurnStyleState::Locked,
-				1 => TurnStyleState::Unlocked,
-				_ => panic!("invalid tag number")
-			}
 		}
 	}
 
 	impl EnumTag for TurnStyleEvent {
 		fn tag_number(&self) -> usize {
-			match self {
-				&TurnStyleEvent::Push => 0,
-				&TurnStyleEvent::InsertCoin => 1
-			}
+			*self as usize
 		}
 		fn max_tag_number() -> usize {
 			TurnStyleEvent::InsertCoin as usize
-		}
-		fn from_tag(tag: usize) -> TurnStyleEvent {
-			match tag {
-				0 => TurnStyleEvent::Push,
-				1 => TurnStyleEvent::InsertCoin,
-				_ => panic!("invalid tag number")
-			}
 		}
 	}
 
