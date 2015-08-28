@@ -69,7 +69,6 @@ This example is also the test case for the library, although here I've ommitted 
 
 # To Do #
 
-- Integrate suggestion to hide boxing of closures (thanks ricky26!)
 - Expose predicate interface and write unit tests for it
 
 # Alternatives #
