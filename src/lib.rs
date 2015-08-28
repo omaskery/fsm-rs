@@ -1,9 +1,9 @@
 
 /// Actions are just boxed immutable functions that take an argument of the event that triggered them
-pub type Action<S, E> = Box<Fn(&S,&E)>;
+pub type Action<'a, S, E> = Box<Fn(&S,&E) + 'a>;
 
 /// Predicates are used to filter down whether a transition can occur
-pub type Predicate<S, E> = Box<Fn(&S,&E) -> bool>;
+pub type Predicate<'a, S, E> = Box<Fn(&S,&E) -> bool + 'a>;
 
 /// Trait that should be trivially implementable for any C-Like Enum type
 pub trait EnumTag: Copy {
@@ -15,32 +15,32 @@ pub trait EnumTag: Copy {
 
 /// The Transition records, for a given current state, what event type triggers it to move to
 /// what state, performing a specific action on the transition, filterable by a predicate function
-struct Transition<S: EnumTag, E: EnumTag> {
-	predicate: Option<Predicate<S, E>>,
+struct Transition<'a, S: EnumTag, E: EnumTag> {
+	predicate: Option<Predicate<'a, S, E>>,
 	next_state: S,
-	action: Action<S, E>,
+	action: Action<'a, S, E>,
 }
 
 /// The EdgeTransitions record all the Transitions for a given event type
-struct EventTransitions<S: EnumTag, E: EnumTag> {
-	transitions: Vec<Transition<S, E>>,
+struct EventTransitions<'a, S: EnumTag, E: EnumTag> {
+	transitions: Vec<Transition<'a, S, E>>,
 }
 
 /// The StateTransition records all Transitions for a given state
-struct StateTransitions<S: EnumTag, E: EnumTag> {
-	edges: Vec<EventTransitions<S, E>>,
+struct StateTransitions<'a, S: EnumTag, E: EnumTag> {
+	edges: Vec<EventTransitions<'a, S, E>>,
 }
 
 /// The Machine is the Finite State Machine, which has a current state and set of all valid
 /// transitions
-pub struct Machine<S: EnumTag, E: EnumTag> {
+pub struct Machine<'a, S: EnumTag, E: EnumTag> {
 	state: S,
-	transitions: Vec<StateTransitions<S, E>>,
+	transitions: Vec<StateTransitions<'a, S, E>>,
 }
 
-impl<S: EnumTag, E: EnumTag> Machine<S, E> {
+impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 	/// Constructs a new FSM with a given initial state
-	pub fn new(initial_state: S) -> Machine<S, E> {
+	pub fn new(initial_state: S) -> Machine<'a, S, E> {
 		let mut transitions = Vec::with_capacity(S::max_tag_number());
 
 		for _ in 0..S::max_tag_number() + 1 {
@@ -64,14 +64,14 @@ impl<S: EnumTag, E: EnumTag> Machine<S, E> {
 	}
 
 	/// Registers a new valid transition with the FSM
-	pub fn add_transition(&mut self, in_state: S, on_event: E, next_state: S, action: Action<S, E>) {
+	pub fn add_transition<F: Fn(&S, &E) + 'a>(&mut self, in_state: S, on_event: E, next_state: S, action: F) {
 		let transition = &mut self.transitions[in_state.tag_number()];
 
 		let edge = &mut transition.edges[on_event.tag_number()];
 
 		edge.transitions.push(Transition {
 			predicate: None,
-			action: action,
+			action: Box::new(action),
 			next_state: next_state,
 		});
 	}
@@ -140,11 +140,11 @@ mod test {
 		let mut machine = Machine::new(TurnStyleState::Locked);
 		machine.add_transition(
 			TurnStyleState::Locked, TurnStyleEvent::InsertCoin,
-			TurnStyleState::Unlocked, Box::new(|_,_| println!("unlocked"))
+			TurnStyleState::Unlocked, |_,_| println!("unlocked")
 		);
 		machine.add_transition(
 			TurnStyleState::Unlocked, TurnStyleEvent::Push,
-			TurnStyleState::Locked, Box::new(|_,_| println!("locked"))
+			TurnStyleState::Locked, |_,_| println!("locked")
 		);
 		assert!(machine.current_state() == TurnStyleState::Locked);
 		machine.on_event(TurnStyleEvent::Push);
