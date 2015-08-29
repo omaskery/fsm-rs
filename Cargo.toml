@@ -1,7 +1,7 @@
 [package]
 name = "fsm"
 description = "A simple Finite State Machine library, provide State and Event types, then create a machine with an initial state, give it some transition behaviours and you have your state machine!"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Oliver Maskery <omaskery@googlemail.com>"]
 
 readme = "README.md"
