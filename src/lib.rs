@@ -16,19 +16,13 @@ pub trait EnumTag: Copy {
 /// The Transition records, for a given current state, what event type triggers it to move to
 /// what state, performing a specific action on the transition, filterable by a predicate function
 struct Transition<'a, S: EnumTag, E: EnumTag> {
-	predicate: Option<Predicate<'a, S, E>>,
 	next_state: S,
 	action: Action<'a, S, E>,
 }
 
-/// The EdgeTransitions record all the Transitions for a given event type
-struct EventTransitions<'a, S: EnumTag, E: EnumTag> {
-	transitions: Vec<Transition<'a, S, E>>,
-}
-
 /// The StateTransition records all Transitions for a given state
 struct StateTransitions<'a, S: EnumTag, E: EnumTag> {
-	edges: Vec<EventTransitions<'a, S, E>>,
+	edges: Vec<Option<Transition<'a, S, E>>>,
 }
 
 /// The Machine is the Finite State Machine, which has a current state and set of all valid
@@ -47,9 +41,7 @@ impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 			let mut edges = Vec::with_capacity(E::max_tag_number());
 
 			for _ in 0..E::max_tag_number() + 1 {
-				edges.push(EventTransitions {
-					transitions: Vec::new(),
-				});
+				edges.push(None);
 			}
 
 			transitions.push(StateTransitions {
@@ -64,16 +56,21 @@ impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 	}
 
 	/// Registers a new valid transition with the FSM
-	pub fn add_transition<F: Fn(&S, &E) + 'a>(&mut self, in_state: S, on_event: E, next_state: S, action: F) {
+	pub fn add_transition<F>(&mut self, in_state: S, on_event: E, next_state: S, action: F) -> bool
+	where F: Fn(&S, &E) + 'a{
 		let transition = &mut self.transitions[in_state.tag_number()];
 
 		let edge = &mut transition.edges[on_event.tag_number()];
 
-		edge.transitions.push(Transition {
-			predicate: None,
-			action: Box::new(action),
-			next_state: next_state,
-		});
+		if edge.is_none() {
+			*edge = Some(Transition {
+				action: Box::new(action),
+				next_state: next_state,
+			});
+			true
+		} else {
+			false
+		}
 	}
 
 	/// Retrieves a reference to the current state
@@ -85,18 +82,9 @@ impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 	pub fn on_event(&mut self, event_type: E) {
 		let transition = &self.transitions[self.state.tag_number()];
 		let edge = &transition.edges[event_type.tag_number()];
-
-		for transition in edge.transitions.iter() {
-			let valid = match &transition.predicate {
-				&Some(ref p) => (*p)(&self.current_state(), &event_type),
-				&None => true,
-			};
-
-			if valid {
-				(*transition.action)(&self.state, &event_type);
-				self.state = transition.next_state;
-				break;
-			}
+		if let &Some(ref t) = edge {
+			(*t.action)(&self.state, &event_type);
+			self.state = t.next_state;
 		}
 	}
 }
