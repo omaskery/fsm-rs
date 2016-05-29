@@ -13,11 +13,17 @@ pub trait EnumTag: Copy {
 	fn max_tag_number() -> usize;
 }
 
+pub trait Guard {
+    fn evaluate(&self) -> bool;
+}
+
+
 /// The Transition records, for a given current state, what event type triggers it to move to
 /// what state, performing a specific action on the transition, filterable by a predicate function
 struct Transition<'a, S: EnumTag, E: EnumTag> {
 	next_state: S,
 	action: Action<'a, S, E>,
+    guards: Option<Vec<Box<Guard>>>,
 }
 
 /// The StateTransition records all Transitions for a given state
@@ -56,8 +62,8 @@ impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 	}
 
 	/// Registers a new valid transition with the FSM
-	pub fn add_transition<F>(&mut self, in_state: S, on_event: E, next_state: S, action: F) -> bool
-	where F: Fn(&S, &E) + 'a{
+	pub fn add_guarded_transition<F>(&mut self, in_state: S, on_event: E, next_state: S, action: F, guards: Option<Vec<Box<Guard>>>) -> bool
+	where F: Fn(&S, &E) + 'a {
 		let transition = &mut self.transitions[in_state.tag_number()];
 
 		let edge = &mut transition.edges[on_event.tag_number()];
@@ -66,12 +72,18 @@ impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 			*edge = Some(Transition {
 				action: Box::new(action),
 				next_state: next_state,
+                guards: guards,
 			});
 			true
 		} else {
 			false
 		}
 	}
+
+	pub fn add_transition<F>(&mut self, in_state: S, on_event: E, next_state: S, action: F) -> bool
+	where F: Fn(&S, &E) + 'a{
+        self.add_guarded_transition(in_state, on_event, next_state, action, None)
+    }
 
 	/// Retrieves a reference to the current state
 	pub fn current_state(&self) -> S {
@@ -83,8 +95,15 @@ impl<'a, S: EnumTag, E: EnumTag> Machine<'a, S, E> {
 		let transition = &self.transitions[self.state.tag_number()];
 		let edge = &transition.edges[event_type.tag_number()];
 		if let &Some(ref t) = edge {
-			(*t.action)(&self.state, &event_type);
-			self.state = t.next_state;
+            
+            let first_failed_guard = match t.guards {
+                Some(ref x) => x.iter().find(|g| !g.evaluate()),
+                None => None
+            };
+            if first_failed_guard.is_none() {
+                (*t.action)(&self.state, &event_type);
+                self.state = t.next_state;
+            }
 		}
 	}
 }
